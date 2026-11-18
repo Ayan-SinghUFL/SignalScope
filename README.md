@@ -17,7 +17,7 @@ The project serves as a performance benchmark between two advanced spatial data 
 ---
 
 ## Dataset & Map Quirks
-This project utilizes the [OpenCelliD](https://opencellid.org/) database, containing well over **116,000+** real-world cell nodes for the selected states. 
+This project utilizes the [OpenCelliD](https://opencellid.org/) database, containing well over **116,000+** real-world cell nodes for the selected states. The filtered state files live in `resources/data/processed/`. OpenCelliD data is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
 **A note on accuracy and edge-cases:**
 1. **Maritime Nodes:** If you drop a pin in the middle of the Atlantic Ocean or Gulf of Mexico and it connects to a tower, this is *not a bug*. OpenCelliD tracks maritime cell nodes placed on buoys, oil rigs, and large cruise ships. 
@@ -51,7 +51,7 @@ Once SFML is installed on your machine, follow these steps to build the project 
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-link-here>
+   git clone https://github.com/Ayan-SinghUFL/SignalScope.git
    cd SignalScope
    ```
 
@@ -91,6 +91,28 @@ Once SFML is installed on your machine, follow these steps to build the project 
 2. **Scan for Coverage:** Click anywhere on the map to drop a pin. The program will draw a line to the nearest tower and display a coverage radius.
 3. **Analyze Metrics:** Look at the right-hand panel to view the exact coordinate data, signal status (Excellent, Good, Weak, or DEAD ZONE), and the dBm power.
 4. **Compare Algorithms:** Click the "Algorithm" button in the UI panel to toggle between the **KD-Tree** and the **QuadTree**. Drop another pin and observe the difference in `Search Time (us)` to see which data structure performs spatial queries faster!
+
+---
+
+## Tests & KD-Tree Benchmark
+The KD-Tree and RF math build on their own, without SFML:
+
+```bash
+cmake -S . -B build -DSIGNALSCOPE_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target kdtree_test benchmark
+
+./build/kdtree_test               # nearest-tower + signal-strength checks
+./build/benchmark 100000 1000     # [numTowers] [numQueries]
+```
+
+`benchmark` generates 100,000 random tower locations inside Florida's bounding box (fixed seed, so every run uses the same data), then times 1,000 nearest-neighbor queries two ways: the KD-Tree, and a brute-force scan that checks every tower with the Haversine distance. It also confirms that both return a tower at the same distance for every query.
+
+| Run | KD-Tree | Brute force | Speedup | Matches brute force |
+| --- | --- | --- | --- | --- |
+| Windows laptop, MinGW g++ (3 runs) | ~3.2–7.4 µs/query | ~6,300–6,500 µs/query | ~880–2,040× | 1000/1000 |
+| Linux container, g++ `-O3` | ~7.4 µs/query | ~4,070 µs/query | ~550× | 1000/1000 |
+
+Timings depend on the machine and compiler, so run it yourself to compare. The KD-Tree speedup comes from skipping branches that can't hold a closer tower. Brute force is O(n) per query.
 
 ---
 
